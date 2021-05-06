@@ -50,12 +50,6 @@ async def get_speedruns(twitch_response):
         return []
     return list(filter(is_speedrun, streams))
 
-def is_offline(msg):
-    for channel in recently_offline:
-        if channel+" is streaming" in msg.content:
-            return True
-    return False
-
 def create_live_embed(embed_user_name, embed_title):
     embed = discord.Embed()
     embed.title=embed_user_name+" is streaming"
@@ -63,12 +57,12 @@ def create_live_embed(embed_user_name, embed_title):
     embed.color=0x00FF00
     return embed
 
-def create_recently_offline_embed(embed_user_name, embed_title):
-    embed = discord.Embed()
-    embed.title=embed_user_name+" is ending stream"
-    embed.description="["+embed_title+"](https://twitch.tv/"+embed_user_name+")"
-    embed.color=0xFF0000
-    return embed  
+#def create_recently_offline_embed(embed_user_name, embed_title):
+#    embed = discord.Embed()
+#    embed.title=embed_user_name+" is ending stream"
+#    embed.description="["+embed_title+"](https://twitch.tv/"+embed_user_name+")"
+#    embed.color=0xFF0000
+#    return embed  
 
 def create_offline_embed(embed_user_name, embed_title):
     embed = discord.Embed()
