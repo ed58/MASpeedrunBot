@@ -26,12 +26,12 @@ SPEEDRUN_TAG_ID = '7cefbf30-4c3e-4aa7-99cd-70aabb662f27'
 client = discord.Client()
 already_live_speedruns = [] # List of live streamers that have already been posted in the channel to avoid dupes
 recently_offline = [] # List of streamers who have gone offline and their message needs to be edited
-ids = []
+message_ids = [] # List of message ID's used to keep track of individual messages
+
 async def call_twitch():
     # Waiting period between Twitch API calls - this is first so the bot can connect to Discord on init
     await asyncio.sleep(TWITCH_WAIT_TIME)
     url = 'https://api.twitch.tv/helix/streams?game_id=7341'
-    #url = 'https://api.twitch.tv/helix/streams?game_id=11557'
     # TODO - Automate refreshing the Bearer token - it expires after 60 days
     headers = {'Authorization' : 'Bearer ' + TWITCH_BEARER_TOKEN, 'Client-Id': TWITCH_CLIENT_ID}
     return requests.get(url, headers=headers)
@@ -55,21 +55,7 @@ def create_live_embed(embed_user_name, embed_title):
     embed.title=embed_user_name+" is streaming"
     embed.description="["+embed_title+"](https://twitch.tv/"+embed_user_name+")"
     embed.color=0x00FF00
-    return embed
-
-#def create_recently_offline_embed(embed_user_name, embed_title):
-#    embed = discord.Embed()
-#    embed.title=embed_user_name+" is ending stream"
-#    embed.description="["+embed_title+"](https://twitch.tv/"+embed_user_name+")"
-#    embed.color=0xFF0000
-#    return embed  
-
-def create_offline_embed(embed_user_name, embed_title):
-    embed = discord.Embed()
-    embed.title=embed_user_name+" is no longer streaming"
-    embed.description="["+embed_title+"](https://twitch.tv/"+embed_user_name+")"
-    embed.color=0xFF0000
-    return embed    
+    return embed  
 
 async def send_messages(speedrun_channels):
     discord_channel = client.get_channel(DISCORD_CHANNEL_ID)
@@ -77,40 +63,38 @@ async def send_messages(speedrun_channels):
         user_name = channel['user_name']
         title = channel['title']
         embed = create_live_embed(user_name, title)
-        if channel not in already_live_speedruns:
-            already_live_speedruns.append(channel)
-            msg = await discord_channel.send(embed=embed) 
-            await msg.edit(embed=embed)
-            ids.append(msg.id)
-        
-    online_channel_names = list((channel for channel in speedrun_channels))
+        if user_name not in already_live_speedruns:
+            already_live_speedruns.append(user_name)
+            msg = await discord_channel.send(embed=embed)
+            message_ids.append(msg.id)
+
+    # Check for any offline streams and add them to recently_offline    
+    online_channel_names = list((channel['user_name'] for channel in speedrun_channels))
     for channel in already_live_speedruns:
         if channel not in online_channel_names:
             already_live_speedruns.remove(channel)
             recently_offline.append(channel)
 
-async def edit_messages(recently_offline):
-    
+async def delete_messages():
     discord_channel = client.get_channel(DISCORD_CHANNEL_ID)
-    for message_id in ids:
-        msg = await discord_channel.fetch_message(message_id)
+    # Compare each message id with each name in recently_offline and delete the message if a match is found
+    for id in message_ids:
+        msg = await discord_channel.fetch_message(id)
         embed = msg.embeds[0]
-        for channel in recently_offline:
-            name = channel['user_name']
-            title= channel['title']
+        for user_name in recently_offline:
             split = embed.title.split()
-            new_title = split[0]
-            if(new_title == name):
-                new_embed = create_offline_embed(name, title)
-                await msg.edit(embed=new_embed)
-                ids.remove(msg.id)
+            embed_user_name = split[0]
+            if(embed_user_name == user_name):
+                await msg.delete()
+                message_ids.remove(msg.id)
+                recently_offline.remove(user_name)
 
 async def main_task():
     while True:
         twitch_response = await call_twitch()
         speedrun_channels = await get_speedruns(twitch_response)
         await send_messages(speedrun_channels)
-        await edit_messages(recently_offline)
+        await delete_messages()
 
 @client.event
 async def on_ready():
