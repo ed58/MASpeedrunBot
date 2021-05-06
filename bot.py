@@ -25,7 +25,7 @@ SPEEDRUN_TAG_ID = '7cefbf30-4c3e-4aa7-99cd-70aabb662f27'
 
 client = discord.Client()
 already_live_speedruns = [] # List of live streamers that have already been posted in the channel to avoid dupes
-recently_offline = [] # List of streamers who have gone offline and their message needs to be deleted from the channel
+recently_offline = [] # List of streamers who have gone offline and their message needs to be edited
 ids = []
 async def call_twitch():
     # Waiting period between Twitch API calls - this is first so the bot can connect to Discord on init
